@@ -10,11 +10,13 @@
   --color-signal-mint: #3fe280;
 
   /* Typography — Font Families.
-     Aeonik is licensed and not served by Google Fonts; --font-display is
-     wired to it first so adding the licensed files later is a drop-in,
-     and falls through to Inter until then. */
-  --font-aeonik: "Aeonik", var(--font-inter-var), ui-sans-serif, system-ui,
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+     Aeonik is a commercial licence (CoType Foundry) and is listed first so
+     that dropping in licensed files later is a one-line change. Until then
+     the stack falls through to Schibsted Grotesk, the closest open
+     geometric grotesque. */
+  --font-aeonik: "Aeonik", var(--font-display-var), var(--font-inter-var),
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, sans-serif;
   --font-inter: var(--font-inter-var), ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-dm-sans: var(--font-dm-sans-var), ui-sans-serif, system-ui,
@@ -135,6 +137,20 @@ body {
   font-family: var(--font-numeric);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
+}
+
+/*
+ * Headline figures.
+ *
+ * Tabular numerals give the comma a full digit-width slot, which reads as
+ * "$1 , 611 , 435" at display size. Proportional figures space the
+ * separators correctly; the value is re-rendered on a tween rather than
+ * per-digit, so nothing jitters without tnum here.
+ */
+.numeric-display {
+  font-family: var(--font-numeric);
+  font-variant-numeric: proportional-nums;
+  font-feature-settings: "pnum";
 }
 
 /* Visible focus for keyboard users, suppressed for pointer input. */

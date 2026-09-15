@@ -1,6 +1,8 @@
 "use client";
 
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
+import { BorrowSheet } from "@/components/BorrowSheet";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { CapitalBar } from "@/components/CapitalBar";
 import { HoldingRow } from "@/components/HoldingRow";
@@ -30,6 +32,15 @@ export function HomeScreen({
   const borrowable = holdings.filter((h) => h.vaults.length > 0);
   const idleAndBorrowable = borrowable.length > 0 && capital.idleUsd > 0;
 
+  const [active, setActive] = useState<Holding | null>(null);
+
+  // A caller can take over selection (routing to a detail page); otherwise
+  // the borrow sheet opens in place.
+  const select = (h: Holding) => {
+    if (onSelectHolding) onSelectHolding(h);
+    else setActive(h);
+  };
+
   return (
     <div className="mx-auto w-full" style={{ maxWidth: "var(--page-max-width)" }}>
       <Header walletAddress={walletAddress} marketStatus={marketStatus} />
@@ -47,8 +58,9 @@ export function HomeScreen({
           </div>
 
           <div
-            className="rise numeric mt-3"
+            className="rise numeric-display mt-3"
             style={{
+              fontFamily: "var(--font-aeonik)",
               fontSize: "clamp(44px, 9vw, var(--text-display))",
               lineHeight: "var(--leading-display)",
               letterSpacing: "var(--tracking-display)",
@@ -77,7 +89,7 @@ export function HomeScreen({
           {idleAndBorrowable && (
             <motion.button
               type="button"
-              onClick={() => onSelectHolding?.(borrowable[0])}
+              onClick={() => select(borrowable[0])}
               whileHover={{ scale: 1.015 }}
               whileTap={{ scale: 0.985 }}
               className="rise mt-10 inline-flex items-center gap-3 px-7 py-4 text-abyss"
@@ -99,6 +111,7 @@ export function HomeScreen({
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
             <h2
               style={{
+                fontFamily: "var(--font-aeonik)",
                 fontSize: "var(--text-subheading)",
                 letterSpacing: "var(--tracking-subheading)",
               }}
@@ -135,17 +148,25 @@ export function HomeScreen({
                       No lending market yet
                     </div>
                   )}
-                  <HoldingRow
-                    holding={h}
-                    index={i}
-                    onSelect={onSelectHolding}
-                  />
+                  <HoldingRow holding={h} index={i} onSelect={select} />
                 </div>
               ))}
             </div>
           )}
         </section>
       </main>
+
+      <AnimatePresence>
+        {active && (
+          <BorrowSheet
+            holding={active}
+            onClose={() => setActive(null)}
+            onConfirm={() => {
+              // Signing is wired in the next step, once Privy is connected.
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -167,6 +188,7 @@ function Header({
         />
         <span
           style={{
+            fontFamily: "var(--font-aeonik)",
             fontSize: "var(--text-body)",
             letterSpacing: "var(--tracking-body)",
           }}
@@ -206,7 +228,12 @@ function EmptyState() {
         background: "var(--surface-carbon)",
       }}
     >
-      <div style={{ fontSize: "var(--text-subheading)" }}>
+      <div
+        style={{
+          fontFamily: "var(--font-aeonik)",
+          fontSize: "var(--text-subheading)",
+        }}
+      >
         No tokenized stocks yet
       </div>
       <p

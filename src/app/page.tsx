@@ -50,6 +50,7 @@ function ConnectPrompt() {
         <h1
           className="mt-8"
           style={{
+            fontFamily: "var(--font-aeonik)",
             fontSize: "var(--text-heading)",
             lineHeight: "var(--leading-heading)",
             letterSpacing: "var(--tracking-heading)",
