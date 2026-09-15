@@ -120,8 +120,15 @@ export async function getPortfolio(
     });
   }
 
-  // Largest position first — the most likely thing to act on.
-  holdings.sort((a, b) => (b.usdValue ?? 0) - (a.usdValue ?? 0));
+  // Borrowable assets first, then by value. The product is about what your
+  // capital can *do*, so an asset with a lending market outranks a larger
+  // one the user cannot act on.
+  holdings.sort((a, b) => {
+    const aBorrowable = a.vaults.length > 0 ? 0 : 1;
+    const bBorrowable = b.vaults.length > 0 ? 0 : 1;
+    if (aBorrowable !== bBorrowable) return aBorrowable - bBorrowable;
+    return (b.usdValue ?? 0) - (a.usdValue ?? 0);
+  });
 
   const usdcBalance = byMint.get(USDC_MINT)?.uiAmount ?? 0;
 
