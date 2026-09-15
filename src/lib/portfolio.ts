@@ -84,7 +84,19 @@ export async function getPortfolio(
 
   // Only price what the wallet actually holds and we can identify.
   const heldStockMints = [...byMint.keys()].filter((m) => assetsByMint.has(m));
-  const prices = await fetchPrices([...heldStockMints, USDC_MINT]);
+
+  // Most xStocks have no on-chain liquidity and no price. Pricing all of them
+  // is slow and mostly returns nothing, so prioritise the assets that matter:
+  // anything with a lending vault first, then the rest up to a sane cap.
+  const prioritised = [...heldStockMints].sort((a, b) => {
+    const aHasVault = vaultMap.has(a) ? 0 : 1;
+    const bHasVault = vaultMap.has(b) ? 0 : 1;
+    return aHasVault - bHasVault;
+  });
+  const PRICE_LIMIT = 100;
+  const toPrice = prioritised.slice(0, PRICE_LIMIT);
+
+  const prices = await fetchPrices([...toPrice, USDC_MINT]);
 
   const holdings: Holding[] = [];
   for (const mint of heldStockMints) {
@@ -93,6 +105,10 @@ export async function getPortfolio(
     if (!asset || !bal) continue;
 
     const price = prices.get(mint) ?? null;
+
+    // Skip dust and unpriceable positions — they add noise to the portfolio
+    // without changing any number the user acts on.
+    if (!price) continue;
     holdings.push({
       asset,
       price,
@@ -128,7 +144,9 @@ export async function getPortfolio(
       .sort()
       .pop() ?? null;
 
-  const unpriced = holdings.filter((h) => !h.price).length;
+  // Holdings we could identify but not price are excluded from valuation
+  // rather than shown at zero, which would understate the portfolio.
+  const hidden = heldStockMints.length - holdings.length;
 
   return {
     holdings,
@@ -136,8 +154,8 @@ export async function getPortfolio(
     usdcBalance,
     marketStatus: getMarketStatus(lastPriceAt),
     warning:
-      unpriced > 0
-        ? `Price unavailable for ${unpriced} asset${unpriced === 1 ? "" : "s"}`
+      hidden > 0
+        ? `${hidden} holding${hidden === 1 ? "" : "s"} hidden — no market price available`
         : null,
   };
 }
