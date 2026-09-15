@@ -34,7 +34,8 @@ async function fetchChunk(mints: string[]): Promise<Map<string, AssetPrice>> {
         typeof raw.priceChange24h === "number" ? raw.priceChange24h : null,
       decimals: raw.decimals ?? 8,
       liquidity: typeof raw.liquidity === "number" ? raw.liquidity : null,
-      multiplier: raw.scaledUiConfig?.multiplier ?? null,
+      // Deliberately NOT used for balance math — see the field's doc comment.
+      staleMultiplierForDisplay: raw.scaledUiConfig?.multiplier ?? null,
       stockUpdatedAt: raw.stockData?.updatedAt ?? null,
     });
   }

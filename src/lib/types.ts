@@ -26,8 +26,17 @@ export interface AssetPrice {
   decimals: number;
   /** Depth on the execution venue; used to warn on thin markets. */
   liquidity: number | null;
-  /** Present only for scaled-UI mints (all xStocks). */
-  multiplier: number | null;
+  /**
+   * Scaled-UI multiplier as reported by Jupiter — DISPLAY METADATA ONLY.
+   *
+   * Verified stale on mainnet: it kept reporting the superseded value days
+   * after the mint's `newMultiplier` took effect. Using it for balance or
+   * collateral math understates holdings.
+   *
+   * Balances must come from the RPC's `uiAmountString`, which applies the
+   * currently active multiplier. See findings.md §10.
+   */
+  staleMultiplierForDisplay: number | null;
   /** When the underlying equity price last moved. Drives market-closed state. */
   stockUpdatedAt: string | null;
 }
