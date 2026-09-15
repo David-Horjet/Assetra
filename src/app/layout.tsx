@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DM_Sans, Inter, Schibsted_Grotesk } from "next/font/google";
+import { Providers } from "@/components/Providers";
 import "./globals.css";
 
 const inter = Inter({
@@ -48,7 +49,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${inter.variable} ${dmSans.variable} ${display.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-abyss text-chalk">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

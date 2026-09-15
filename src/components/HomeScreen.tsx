@@ -1,8 +1,7 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
-import { BorrowSheet } from "@/components/BorrowSheet";
+import { motion } from "motion/react";
+import { usePrivy } from "@privy-io/react-auth";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { CapitalBar } from "@/components/CapitalBar";
 import { HoldingRow } from "@/components/HoldingRow";
@@ -15,6 +14,10 @@ interface HomeScreenProps {
   snapshot: PortfolioSnapshot;
   walletAddress: string;
   onSelectHolding?: (holding: Holding) => void;
+  /** A background refresh is in flight. */
+  refreshing?: boolean;
+  /** Viewing an address without a connected wallet — actions are disabled. */
+  readOnly?: boolean;
 }
 
 /**
@@ -27,23 +30,23 @@ export function HomeScreen({
   snapshot,
   walletAddress,
   onSelectHolding,
+  refreshing = false,
+  readOnly = false,
 }: HomeScreenProps) {
   const { capital, holdings, marketStatus, usdcBalance, warning } = snapshot;
   const borrowable = holdings.filter((h) => h.vaults.length > 0);
   const idleAndBorrowable = borrowable.length > 0 && capital.idleUsd > 0;
 
-  const [active, setActive] = useState<Holding | null>(null);
-
-  // A caller can take over selection (routing to a detail page); otherwise
-  // the borrow sheet opens in place.
-  const select = (h: Holding) => {
-    if (onSelectHolding) onSelectHolding(h);
-    else setActive(h);
-  };
+  const select = (h: Holding) => onSelectHolding?.(h);
 
   return (
     <div className="mx-auto w-full" style={{ maxWidth: "var(--page-max-width)" }}>
-      <Header walletAddress={walletAddress} marketStatus={marketStatus} />
+      <Header
+        walletAddress={walletAddress}
+        marketStatus={marketStatus}
+        refreshing={refreshing}
+        readOnly={readOnly}
+      />
 
       <main className="px-6 pb-24 sm:px-10">
         <section className="pt-12 sm:pt-20">
@@ -155,18 +158,6 @@ export function HomeScreen({
           )}
         </section>
       </main>
-
-      <AnimatePresence>
-        {active && (
-          <BorrowSheet
-            holding={active}
-            onClose={() => setActive(null)}
-            onConfirm={() => {
-              // Signing is wired in the next step, once Privy is connected.
-            }}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }
@@ -174,10 +165,15 @@ export function HomeScreen({
 function Header({
   walletAddress,
   marketStatus,
+  refreshing,
+  readOnly,
 }: {
   walletAddress: string;
   marketStatus: HomeScreenProps["snapshot"]["marketStatus"];
+  refreshing: boolean;
+  readOnly: boolean;
 }) {
+  const { logout, authenticated } = usePrivy();
   return (
     <header className="flex items-center justify-between gap-4 px-6 py-6 sm:px-10">
       <div className="flex shrink-0 items-center gap-3">
@@ -201,15 +197,32 @@ function Header({
         <div className="hidden sm:block">
           <MarketStatusPill status={marketStatus} />
         </div>
-        <div
-          className="numeric shrink-0 rounded-pill border px-3 py-1.5 text-ash"
+        {readOnly && (
+          <span
+            className="hidden shrink-0 rounded-pill px-2.5 py-1 text-ash sm:inline"
+            style={{
+              background: "var(--surface-graphite)",
+              fontSize: "var(--text-caption)",
+            }}
+            title="Viewing a wallet you have not connected. Actions are unavailable."
+          >
+            Read only
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={authenticated ? logout : undefined}
+          disabled={!authenticated}
+          title={authenticated ? "Disconnect" : undefined}
+          className="numeric shrink-0 rounded-pill border px-3 py-1.5 text-ash transition-colors enabled:hover:text-chalk"
           style={{
             borderColor: "var(--border-subtle)",
             fontSize: "var(--text-caption)",
+            opacity: refreshing ? 0.55 : 1,
           }}
         >
           {shortAddress(walletAddress)}
-        </div>
+        </button>
       </div>
     </header>
   );
