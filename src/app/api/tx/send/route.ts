@@ -12,13 +12,15 @@ interface SendRequest {
 }
 
 /**
- * POST /api/borrow/send
+ * POST /api/tx/send
  *
- * Submits a wallet-signed transaction and waits for confirmation.
+ * Submits a wallet-signed transaction and waits for confirmation. Shared by
+ * every flow — buy, borrow, repay and earn — since submission is identical
+ * once a transaction is signed.
  *
- * Submission runs server-side to use the paid RPC — public endpoints drop
- * transactions under load, which is exactly when a demo fails. The
- * transaction arrives already signed; the server only relays it.
+ * Runs server-side to use the paid RPC: public endpoints drop transactions
+ * under load, which is exactly when a demo fails. The transaction arrives
+ * already signed; the server only relays it.
  */
 export async function POST(request: Request) {
   let body: SendRequest;
@@ -80,7 +82,7 @@ export async function POST(request: Request) {
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Failed to submit transaction";
-    console.error("[api/borrow/send]", err);
+    console.error("[api/tx/send]", err);
     return NextResponse.json({ error: message }, { status: 502 });
   }
 }

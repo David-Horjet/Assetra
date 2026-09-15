@@ -62,15 +62,26 @@ export function CapitalBar({ workingUsd, idleUsd }: CapitalBarProps) {
       </div>
 
       <div className="mt-4 flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
+        {/* Both terms are defined inline. "Working" and "Idle" are the
+            product's vocabulary, not the user's — asserting them without
+            saying what they mean is the fastest way to lose a first-time
+            viewer. */}
         <Stat
           label="Working"
+          sublabel="backing a loan"
           value={workingUsd}
           accent
           hint={allIdle ? "Nothing yet" : undefined}
         />
         {/* Idle is the larger number in the opening frame, but it is not the
             one to celebrate — keep it quiet so Working reads as the goal. */}
-        <Stat label="Idle" value={idleUsd} align="right" muted />
+        <Stat
+          label="Idle"
+          sublabel="earning nothing"
+          value={idleUsd}
+          align="right"
+          muted
+        />
       </div>
     </div>
   );
@@ -78,6 +89,7 @@ export function CapitalBar({ workingUsd, idleUsd }: CapitalBarProps) {
 
 function Stat({
   label,
+  sublabel,
   value,
   accent,
   align = "left",
@@ -85,6 +97,7 @@ function Stat({
   muted,
 }: {
   label: string;
+  sublabel?: string;
   value: number;
   accent?: boolean;
   align?: "left" | "right";
@@ -125,9 +138,9 @@ function Stat({
       >
         {usd(value)}
       </div>
-      {hint && (
+      {(hint || sublabel) && (
         <div className="text-ash" style={{ fontSize: "var(--text-caption)" }}>
-          {hint}
+          {hint ?? sublabel}
         </div>
       )}
     </div>

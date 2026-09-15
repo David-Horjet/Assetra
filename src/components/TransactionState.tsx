@@ -1,16 +1,18 @@
 "use client";
 
 import { motion } from "motion/react";
-import { usd } from "@/lib/format";
-import type { BorrowResult, BorrowStatus } from "@/lib/useBorrow";
+import type { TxResult, TxStatus } from "@/lib/useTransaction";
 
 interface TransactionStateProps {
-  status: BorrowStatus;
+  status: TxStatus;
   error: string | null;
-  result: BorrowResult | null;
-  borrowAmount: number;
-  borrowSymbol: string;
-  collateralSymbol: string;
+  result: TxResult | null;
+  /** Headline figure, already formatted for the flow that ran. */
+  headline: string;
+  /** What the headline means, e.g. "USDC unlocked". */
+  caption: string;
+  /** Reassurance shown under the result, when the flow has one. */
+  note?: string;
   onDone: () => void;
   onRetry: () => void;
 }
@@ -41,9 +43,9 @@ export function TransactionState({
   status,
   error,
   result,
-  borrowAmount,
-  borrowSymbol,
-  collateralSymbol,
+  headline,
+  caption,
+  note,
   onDone,
   onRetry,
 }: TransactionStateProps) {
@@ -75,9 +77,9 @@ export function TransactionState({
 
         {status === "confirmed" && result && (
           <Confirmed
-            borrowAmount={borrowAmount}
-            borrowSymbol={borrowSymbol}
-            collateralSymbol={collateralSymbol}
+            headline={headline}
+            caption={caption}
+            note={note}
             result={result}
             onDone={onDone}
           />
@@ -122,16 +124,16 @@ function Pending({ title, detail }: { title: string; detail: string }) {
 }
 
 function Confirmed({
-  borrowAmount,
-  borrowSymbol,
-  collateralSymbol,
+  headline,
+  caption,
+  note,
   result,
   onDone,
 }: {
-  borrowAmount: number;
-  borrowSymbol: string;
-  collateralSymbol: string;
-  result: BorrowResult;
+  headline: string;
+  caption: string;
+  note?: string;
+  result: TxResult;
   onDone: () => void;
 }) {
   return (
@@ -154,16 +156,16 @@ function Confirmed({
           lineHeight: 1.1,
         }}
       >
-        {usd(borrowAmount)}
+        {headline}
       </div>
-      <div style={{ fontSize: "var(--text-body)" }}>
-        {borrowSymbol} unlocked
-      </div>
+      <div style={{ fontSize: "var(--text-body)" }}>{caption}</div>
 
-      {/* The whole point of the product, stated at the moment it lands. */}
-      <p className="mt-3 text-ash" style={{ fontSize: "var(--text-caption)" }}>
-        Your {collateralSymbol} is still yours.
-      </p>
+      {/* The point of the flow, stated at the moment it lands. */}
+      {note && (
+        <p className="mt-3 text-ash" style={{ fontSize: "var(--text-caption)" }}>
+          {note}
+        </p>
+      )}
 
       {result.explorerUrl && (
         <a

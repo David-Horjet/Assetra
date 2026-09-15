@@ -1,43 +1,51 @@
 "use client";
 
-import { motion } from "motion/react";
 import { usePrivy } from "@privy-io/react-auth";
+import { motion } from "motion/react";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { CapitalBar } from "@/components/CapitalBar";
 import { HoldingRow } from "@/components/HoldingRow";
 import { MarketStatusPill } from "@/components/MarketStatusPill";
-import { shortAddress, usd } from "@/lib/format";
+import { percent, shortAddress, usd } from "@/lib/format";
 import type { PortfolioSnapshot } from "@/lib/portfolio";
-import type { Holding } from "@/lib/types";
+import type { Holding, XStockAsset } from "@/lib/types";
 
 interface HomeScreenProps {
   snapshot: PortfolioSnapshot;
   walletAddress: string;
-  onSelectHolding?: (holding: Holding) => void;
-  /** A background refresh is in flight. */
   refreshing?: boolean;
   /** Viewing an address without a connected wallet — actions are disabled. */
   readOnly?: boolean;
+  /** USDC supply APY, for the Earn card. */
+  earnApy: number | null;
+  /** Total currently supplied to Earn markets. */
+  earningUsd: number;
+  onBuy: (asset: XStockAsset, price: number | null) => void;
+  onBorrow: (holding: Holding) => void;
+  onEarn: () => void;
 }
 
 /**
- * Home — the capital view.
+ * Home.
  *
- * Answers one question above the fold: how much of my capital is idle, and
- * what can I do about it. Everything else is secondary.
+ * States what the product does before showing any numbers: a first-time
+ * viewer should understand "borrow against stocks without selling" before
+ * being asked to interpret a capital split.
  */
 export function HomeScreen({
   snapshot,
   walletAddress,
-  onSelectHolding,
   refreshing = false,
   readOnly = false,
+  earnApy,
+  earningUsd,
+  onBuy,
+  onBorrow,
+  onEarn,
 }: HomeScreenProps) {
   const { capital, holdings, marketStatus, usdcBalance, warning } = snapshot;
   const borrowable = holdings.filter((h) => h.vaults.length > 0);
-  const idleAndBorrowable = borrowable.length > 0 && capital.idleUsd > 0;
-
-  const select = (h: Holding) => onSelectHolding?.(h);
+  const empty = holdings.length === 0;
 
   return (
     <div className="mx-auto w-full" style={{ maxWidth: "var(--page-max-width)" }}>
@@ -49,7 +57,7 @@ export function HomeScreen({
       />
 
       <main className="px-6 pb-24 sm:px-10">
-        <section className="pt-12 sm:pt-20">
+        <section className="pt-10 sm:pt-16">
           <div
             className="uppercase text-ash"
             style={{
@@ -57,14 +65,14 @@ export function HomeScreen({
               letterSpacing: "var(--tracking-caption)",
             }}
           >
-            Your capital
+            Portfolio value
           </div>
 
           <div
             className="rise numeric-display mt-3"
             style={{
               fontFamily: "var(--font-aeonik)",
-              fontSize: "clamp(44px, 9vw, var(--text-display))",
+              fontSize: "clamp(40px, 8vw, 64px)",
               lineHeight: "var(--leading-display)",
               letterSpacing: "var(--tracking-display)",
               fontWeight: "var(--font-weight-medium)",
@@ -73,44 +81,63 @@ export function HomeScreen({
             <AnimatedNumber value={capital.totalUsd} format={(v) => usd(v)} />
           </div>
 
-          {usdcBalance > 0 && (
-            <div
-              className="numeric mt-3 text-ash"
-              style={{ fontSize: "var(--text-body)" }}
-            >
-              {usd(usdcBalance)} USDC available
-            </div>
-          )}
-
-          <div className="mt-10 max-w-xl">
-            <CapitalBar
-              workingUsd={capital.workingUsd}
-              idleUsd={capital.idleUsd}
-            />
+          <div
+            className="numeric mt-2 text-ash"
+            style={{ fontSize: "var(--text-body)" }}
+          >
+            {usd(usdcBalance)} USDC available
+            {earningUsd > 0 && ` · ${usd(earningUsd)} earning`}
           </div>
 
-          {idleAndBorrowable && (
-            <motion.button
-              type="button"
-              onClick={() => select(borrowable[0])}
-              whileHover={{ scale: 1.015 }}
-              whileTap={{ scale: 0.985 }}
-              className="rise mt-10 inline-flex items-center gap-3 px-7 py-4 text-abyss"
-              style={{
-                borderRadius: "var(--radius-herobutton)",
-                background: "var(--color-signal-mint)",
-                fontSize: "var(--text-body)",
-                fontWeight: "var(--font-weight-medium)",
-                animationDelay: "0.25s",
-              }}
-            >
-              Put idle capital to work
-              <span aria-hidden>→</span>
-            </motion.button>
+          {!empty && (
+            <div className="mt-9 max-w-xl">
+              <CapitalBar
+                workingUsd={capital.workingUsd}
+                idleUsd={capital.idleUsd}
+              />
+            </div>
           )}
         </section>
 
-        <section className="mt-20">
+        {/* The three primitives, stated plainly. This is what a first-time
+            viewer reads to understand the product. */}
+        <section className="mt-12 grid gap-3 sm:grid-cols-3">
+          <ActionCard
+            label="Buy"
+            title="Own tokenized stocks"
+            body="Buy NVDAx, SPYx, QQQx or TSLAx with USDC, routed through Jupiter."
+            cta={borrowable[0] ? `Buy ${borrowable[0].asset.symbol}` : "Buy stocks"}
+            disabled={readOnly}
+            onClick={() => {
+              const target = borrowable[0] ?? holdings[0];
+              if (target) onBuy(target.asset, target.price?.usdPrice ?? null);
+              else onBuy(DEFAULT_BUY_ASSET, null);
+            }}
+          />
+          <ActionCard
+            label="Borrow"
+            title="Unlock cash without selling"
+            body="Use your stocks as collateral and borrow USDC against them."
+            cta={borrowable[0] ? "Borrow USDC" : "No eligible stocks"}
+            accent
+            disabled={readOnly || borrowable.length === 0}
+            onClick={() => borrowable[0] && onBorrow(borrowable[0])}
+          />
+          <ActionCard
+            label="Earn"
+            title="Put your USDC to work"
+            body={
+              earnApy
+                ? `Supply USDC to Jupiter Lend and earn ${percent(earnApy)} APY.`
+                : "Supply USDC to Jupiter Lend and earn yield."
+            }
+            cta={earningUsd > 0 ? "Manage" : "Start earning"}
+            disabled={readOnly || !earnApy}
+            onClick={onEarn}
+          />
+        </section>
+
+        <section className="mt-16">
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
             <h2
               style={{
@@ -132,8 +159,11 @@ export function HomeScreen({
             )}
           </div>
 
-          {holdings.length === 0 ? (
-            <EmptyState />
+          {empty ? (
+            <EmptyState
+              onBuy={() => onBuy(DEFAULT_BUY_ASSET, null)}
+              disabled={readOnly}
+            />
           ) : (
             <div className="mt-6 flex flex-col gap-2">
               {holdings.map((h, i) => (
@@ -151,7 +181,7 @@ export function HomeScreen({
                       No lending market yet
                     </div>
                   )}
-                  <HoldingRow holding={h} index={i} onSelect={select} />
+                  <HoldingRow holding={h} index={i} onSelect={onBorrow} />
                 </div>
               ))}
             </div>
@@ -159,6 +189,92 @@ export function HomeScreen({
         </section>
       </main>
     </div>
+  );
+}
+
+/**
+ * Buy target for a wallet holding nothing yet.
+ *
+ * SPYx has the highest LTV of the four vault assets (75%), so it gives a new
+ * user the most borrowing power per dollar.
+ */
+const DEFAULT_BUY_ASSET: XStockAsset = {
+  symbol: "SPYx",
+  name: "S&P 500 xStock",
+  underlyingSymbol: "SPY",
+  mint: "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+  logo: "https://xstocks-metadata.backed.fi/logos/tokens/SPYx.png",
+  isTradingHalted: false,
+};
+
+function ActionCard({
+  label,
+  title,
+  body,
+  cta,
+  onClick,
+  accent,
+  disabled,
+}: {
+  label: string;
+  title: string;
+  body: string;
+  cta: string;
+  onClick: () => void;
+  accent?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      whileHover={disabled ? undefined : { y: -2 }}
+      transition={{ duration: 0.2 }}
+      className="rise flex flex-col rounded-card border px-5 py-5 text-left transition-colors disabled:opacity-45"
+      style={{
+        borderColor: accent
+          ? "rgba(63, 226, 128, 0.25)"
+          : "var(--border-subtle)",
+        background: "var(--surface-carbon)",
+      }}
+    >
+      <span
+        className="uppercase"
+        style={{
+          color: accent ? "var(--color-signal-mint)" : "var(--color-ash)",
+          fontSize: "var(--text-caption)",
+          letterSpacing: "var(--tracking-caption)",
+        }}
+      >
+        {label}
+      </span>
+      <span
+        className="mt-2"
+        style={{
+          fontFamily: "var(--font-aeonik)",
+          fontSize: "var(--text-body)",
+        }}
+      >
+        {title}
+      </span>
+      <span
+        className="mt-1.5 flex-1 text-ash"
+        style={{ fontSize: "var(--text-caption)" }}
+      >
+        {body}
+      </span>
+      <span
+        className="mt-4 inline-flex items-center gap-1.5"
+        style={{
+          color: accent ? "var(--color-signal-mint)" : "var(--color-chalk)",
+          fontSize: "var(--text-caption)",
+        }}
+      >
+        {cta}
+        <span aria-hidden>→</span>
+      </span>
+    </motion.button>
   );
 }
 
@@ -174,6 +290,7 @@ function Header({
   readOnly: boolean;
 }) {
   const { logout, authenticated } = usePrivy();
+
   return (
     <header className="flex items-center justify-between gap-4 px-6 py-6 sm:px-10">
       <div className="flex shrink-0 items-center gap-3">
@@ -228,14 +345,16 @@ function Header({
   );
 }
 
-/**
- * Empty state for a wallet holding no priceable xStocks. Names the four
- * assets that actually work rather than leaving the user to guess.
- */
-function EmptyState() {
+function EmptyState({
+  onBuy,
+  disabled,
+}: {
+  onBuy: () => void;
+  disabled?: boolean;
+}) {
   return (
     <div
-      className="mt-6 rounded-card border px-6 py-16 text-center"
+      className="mt-6 rounded-card border px-6 py-14 text-center"
       style={{
         borderColor: "var(--border-subtle)",
         background: "var(--surface-carbon)",
@@ -247,15 +366,28 @@ function EmptyState() {
           fontSize: "var(--text-subheading)",
         }}
       >
-        No tokenized stocks yet
+        Start with your first stock
       </div>
       <p
         className="mx-auto mt-3 max-w-sm text-ash"
         style={{ fontSize: "var(--text-body)" }}
       >
-        Assetra works with xStocks on Solana. Hold NVDAx, SPYx, QQQx or TSLAx to
-        borrow against them without selling.
+        Buy a tokenized stock with USDC, then borrow against it without selling.
       </p>
+      <button
+        type="button"
+        onClick={onBuy}
+        disabled={disabled}
+        className="mt-7 px-7 py-3.5 text-abyss disabled:opacity-40"
+        style={{
+          borderRadius: "var(--radius-herobutton)",
+          background: "var(--color-signal-mint)",
+          fontSize: "var(--text-body)",
+          fontWeight: "var(--font-weight-medium)",
+        }}
+      >
+        Buy SPYx
+      </button>
     </div>
   );
 }
