@@ -8,7 +8,7 @@ import { HoldingRow } from "@/components/HoldingRow";
 import { MarketStatusPill } from "@/components/MarketStatusPill";
 import { percent, shortAddress, usd } from "@/lib/format";
 import type { PortfolioSnapshot } from "@/lib/portfolio";
-import type { Holding, XStockAsset } from "@/lib/types";
+import type { Holding } from "@/lib/types";
 
 interface HomeScreenProps {
   snapshot: PortfolioSnapshot;
@@ -20,7 +20,7 @@ interface HomeScreenProps {
   earnApy: number | null;
   /** Total currently supplied to Earn markets. */
   earningUsd: number;
-  onBuy: (asset: XStockAsset, price: number | null) => void;
+  onBuy: () => void;
   onBorrow: (holding: Holding) => void;
   onEarn: () => void;
 }
@@ -105,14 +105,10 @@ export function HomeScreen({
           <ActionCard
             label="Buy"
             title="Own tokenized stocks"
-            body="Buy NVDAx, SPYx, QQQx or TSLAx with USDC, routed through Jupiter."
-            cta={borrowable[0] ? `Buy ${borrowable[0].asset.symbol}` : "Buy stocks"}
+            body="Buy Apple, Nvidia, the S&P 500 and more with USDC, routed through Jupiter."
+            cta="Browse stocks"
             disabled={readOnly}
-            onClick={() => {
-              const target = borrowable[0] ?? holdings[0];
-              if (target) onBuy(target.asset, target.price?.usdPrice ?? null);
-              else onBuy(DEFAULT_BUY_ASSET, null);
-            }}
+            onClick={onBuy}
           />
           <ActionCard
             label="Borrow"
@@ -160,10 +156,7 @@ export function HomeScreen({
           </div>
 
           {empty ? (
-            <EmptyState
-              onBuy={() => onBuy(DEFAULT_BUY_ASSET, null)}
-              disabled={readOnly}
-            />
+            <EmptyState onBuy={onBuy} disabled={readOnly} />
           ) : (
             <div className="mt-6 flex flex-col gap-2">
               {holdings.map((h, i) => (
@@ -191,21 +184,6 @@ export function HomeScreen({
     </div>
   );
 }
-
-/**
- * Buy target for a wallet holding nothing yet.
- *
- * SPYx has the highest LTV of the four vault assets (75%), so it gives a new
- * user the most borrowing power per dollar.
- */
-const DEFAULT_BUY_ASSET: XStockAsset = {
-  symbol: "SPYx",
-  name: "S&P 500 xStock",
-  underlyingSymbol: "SPY",
-  mint: "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
-  logo: "https://xstocks-metadata.backed.fi/logos/tokens/SPYx.png",
-  isTradingHalted: false,
-};
 
 function ActionCard({
   label,
@@ -386,7 +364,7 @@ function EmptyState({
           fontWeight: "var(--font-weight-medium)",
         }}
       >
-        Buy SPYx
+        Browse stocks
       </button>
     </div>
   );

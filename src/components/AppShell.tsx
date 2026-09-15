@@ -8,17 +8,20 @@ import { BorrowSheet } from "@/components/BorrowSheet";
 import { BuySheet } from "@/components/BuySheet";
 import { EarnSheet } from "@/components/EarnSheet";
 import { HomeScreen } from "@/components/HomeScreen";
+import { StockPicker } from "@/components/StockPicker";
 import { Landing } from "@/components/Landing";
 import { TransactionState } from "@/components/TransactionState";
 import { tokenAmount, usd } from "@/lib/format";
 import { useTransaction } from "@/lib/useTransaction";
 import type { EarnMarket, EarnPosition } from "@/lib/jupiter/earn";
 import type { QuoteSummary } from "@/lib/jupiter/swap";
+import type { MarketAsset } from "@/lib/market";
 import type { PortfolioSnapshot } from "@/lib/portfolio";
 import type { Holding, XStockAsset } from "@/lib/types";
 
 /** Which sheet is open, and what it is acting on. */
 type Sheet =
+  | { kind: "picker" }
   | { kind: "buy"; asset: XStockAsset; price: number | null }
   | { kind: "borrow"; holding: Holding }
   | { kind: "earn"; market: EarnMarket }
@@ -53,6 +56,8 @@ export function AppShell({
     markets: EarnMarket[];
     positions: EarnPosition[];
   }>({ markets: [], positions: [] });
+  const [market, setMarket] = useState<MarketAsset[]>([]);
+  const [marketLoading, setMarketLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sheet, setSheet] = useState<Sheet>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
@@ -82,6 +87,17 @@ export function AppShell({
     void load(address);
   }, [address, load]);
 
+  const openPicker = useCallback(() => {
+    setSheet({ kind: "picker" });
+    if (market.length > 0 || marketLoading) return;
+
+    setMarketLoading(true);
+    void fetch("/api/market")
+      .then((r) => (r.ok ? r.json() : { assets: [] }))
+      .then((d) => setMarket(d.assets ?? []))
+      .finally(() => setMarketLoading(false));
+  }, [market.length, marketLoading]);
+
   const close = useCallback(() => {
     tx.reset();
     setSheet(null);
@@ -108,7 +124,7 @@ export function AppShell({
         readOnly={!connected}
         earnApy={usdcMarket?.supplyApy ?? null}
         earningUsd={earningUsd}
-        onBuy={(asset, price) => setSheet({ kind: "buy", asset, price })}
+        onBuy={openPicker}
         onBorrow={(holding) => setSheet({ kind: "borrow", holding })}
         onEarn={() =>
           usdcMarket && setSheet({ kind: "earn", market: usdcMarket })
@@ -116,6 +132,21 @@ export function AppShell({
       />
 
       <AnimatePresence>
+        {sheet?.kind === "picker" && tx.status === "idle" && (
+          <StockPicker
+            assets={market}
+            loading={marketLoading}
+            onClose={() => setSheet(null)}
+            onSelect={(m) =>
+              setSheet({
+                kind: "buy",
+                asset: m.asset,
+                price: m.price.usdPrice,
+              })
+            }
+          />
+        )}
+
         {sheet?.kind === "buy" && tx.status === "idle" && (
           <BuySheet
             asset={sheet.asset}
@@ -123,7 +154,7 @@ export function AppShell({
             usdcBalance={snapshot.usdcBalance}
             busy={tx.busy}
             error={tx.error}
-            onClose={() => setSheet(null)}
+            onClose={() => setSheet({ kind: "picker" })}
             onConfirm={(quote: QuoteSummary) => {
               setOutcome({
                 headline: `${tokenAmount(quote.outUiAmount, 6)} ${sheet.asset.symbol}`,
