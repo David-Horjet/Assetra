@@ -34,10 +34,5 @@
     "tailwindcss": "^4",
     "typescript": "^5"
   },
-  "packageManager": "pnpm@11.10.0",
-  "pnpm": {
-    "overrides": {
-      "@solana/web3.js": "1.98.4"
-    }
-  }
+  "packageManager": "pnpm@11.10.0"
 }

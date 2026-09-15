@@ -1,9 +1,12 @@
-allowBuilds:
-  '@reown/appkit': set this to true or false
-  bigint-buffer: set this to true or false
-  bufferutil: set this to true or false
-  esbuild: set this to true or false
-  keccak: set this to true or false
-  sharp: false
-  unrs-resolver: false
-  utf-8-validate: set this to true or false
+overrides:
+  "@solana/web3.js": 1.98.4
+
+# These packages ship optional native build scripts. The pure-JS fallbacks are
+# correct for our use, and approving them is not worth the install-time cost.
+ignoredBuiltDependencies:
+  - "@reown/appkit"
+  - bigint-buffer
+  - bufferutil
+  - esbuild
+  - keccak
+  - utf-8-validate
