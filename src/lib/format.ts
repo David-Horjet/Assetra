@@ -15,6 +15,9 @@ export function usd(value: number, opts?: { compact?: boolean }): string {
     })}M`;
   }
 
+  // Cents matter below $10k and are noise above it. A real demo position is
+  // small, so rounding "$6.50" to "$7" would both misstate the amount and
+  // make a deliberate position look like a placeholder.
   const showCents = Math.abs(value) < 10_000;
   return value.toLocaleString("en-US", {
     style: "currency",

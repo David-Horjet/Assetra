@@ -56,11 +56,22 @@ export function BorrowSheet({
     [collateralUsd, vault],
   );
 
-  // Open at a conservative third of capacity rather than at zero (nothing to
-  // react to) or at max (anchors on the riskiest choice).
-  const [amount, setAmount] = useState(() =>
-    Math.floor(maxBorrow * 0.33 * 100) / 100,
-  );
+  /**
+   * Opening amount.
+   *
+   * A third of capacity is a sensible default on a large position, but on a
+   * small one it lands near the protocol minimum — $2.15 against $10 of
+   * collateral, which reads as broken rather than cautious.
+   *
+   * Small positions therefore open at half of capacity. On a 75% LTV vault
+   * that is 37.5% LTV: still "Healthy", with roughly 56% of price headroom
+   * before liquidation. 60% would tip the opening state into "Moderate",
+   * which is the wrong first impression for a position this conservative.
+   */
+  const [amount, setAmount] = useState(() => {
+    const fraction = collateralUsd < 200 ? 0.5 : 0.33;
+    return Math.floor(maxBorrow * fraction * 100) / 100;
+  });
 
   const ltv = computeLtv(amount, collateralUsd);
   const health = healthState(ltv, vault.liquidationThreshold);
@@ -146,7 +157,7 @@ export function BorrowSheet({
               onChange={(e) => setAmount(Number(e.target.value))}
               disabled={busy || maxBorrow <= 0}
               aria-label={`Borrow amount in ${vault.borrowSymbol}`}
-              className="mt-7 w-full cursor-pointer accent-[var(--color-signal-mint)]"
+              className="mt-7 w-full cursor-pointer accent-(--color-signal-mint)"
             />
 
             <div className="mt-2 flex justify-between">
